@@ -1,4 +1,4 @@
-#loading in libs for respirometry analyses
+#loading in libs for thermal tolerance
 ```{r}
 install.packages(c('tidyverse','ggpubr','rstatix'))
 ```
@@ -15,18 +15,18 @@ library(plyr)
 library(datarium)
 ```
 
-#Loading in data
+#Loading in data for respirometry analyses
 ```{r}
 #swiftiadata
 
 swiftresp <- read_csv("Swiftiaresp.csv")
 sq10.1<- read_csv("SwiftiaQ10all.csv")
-sq10s <- read_csv("swiftiaq10s.csv")
+
 
 #muriceadata
 muricearesp <- read_csv("muricearesp.csv")
 mq10.1 <- read_csv("MuriceaQ10all.csv")
-mq10s <- read_csv("muriceaq10s.csv")
+
 ```
 
 #approach 1: repeated measurements analysis (ANOVA) with temperature as a covariate
@@ -136,3 +136,44 @@ t.test(cq10 ~ group, data = cubem) #not significantly different from 1
 
 cubes <- swiftcube
 t.test(q10 ~ group, data = cubes) #not significantly different from 1
+```
+
+#running analyses for polyp activity
+
+#loading in the data for the analyses
+
+library(dplyr)
+
+# load data
+polyp <- read.csv("PolypData.csv", header = TRUE, check.names = TRUE, stringsAsFactors = FALSE)
+colnames(polyp)
+head(polyp)
+
+```
+
+```{r}
+#testing assumptions for parametric pearson correlation test
+
+#normality checks (shapiro-wilk test)
+shapiro.test(polyp$polyp_activity) #not normal (p=0.037)
+
+#visually assess linearity
+plot(polyp$temperature, polyp$polyp_activity)
+abline(lm(polyp_activity ~ temperature, data = polyp), col = "red") #not linear
+
+#data does not meet assumptions, so will use nonparametric alternative (spearman)
+```
+
+```{r}
+# Spearman correlation by species
+species_list <- unique(polyp$species)
+
+for (sp in species_list) {
+  cat("\nSpecies:", sp, "\n")
+  sub_data <- filter(polyp, species == sp)
+  result <- cor.test(sub_data$temperature, sub_data$polyp_activity, method = "spearman")
+  cat("  Spearman correlation:", round(result$estimate, 4), "\n")
+  cat("  p-value:", signif(result$p.value, 4), "\n")
+}
+
+```
