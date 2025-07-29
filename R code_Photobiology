@@ -1,0 +1,108 @@
+#code for photobiology analyses (endobiont density and yield)
+# endobiont densities
+
+library(car)      
+library(ggpubr)   
+
+#load data
+polyp <- read.csv("EndobiontDensities.csv", header = TRUE)
+
+# check dataframe
+str(polyp)
+
+# visualize
+# boxplots by group
+boxplot(density ~ location, data = polyp,
+        main = "Endobiont Density by Location",
+        ylab = "Density")
+
+# Q–Q plots by group
+ggqqplot(polyp, x = "density", facet.by = "location")
+
+# test homogeneity of variances
+levene_out <- leveneTest(density ~ location, data = polyp)
+print(levene_out)
+
+# fit ANOVA model and test residuals for normality
+anova_model <- aov(density ~ location, data = polyp)
+shapiro_out <- shapiro.test(residuals(anova_model))
+print(shapiro_out) #significant; attempt transformation
+
+# log‑transform and repeat
+  polyp$logDens <- log10(polyp$density + 1)  # +1 if zeros may appear
+  
+  # check
+  boxplot(logDens ~ location, data = polyp,
+          main = "Log10(Density) by Location",
+          ylab = "Log10(Density)")
+  ggqqplot(polyp, x = "logDens", facet.by = "location") better
+  
+  anova_model2 <- aov(logDens ~ location, data = polyp)
+  shapiro_out2 <- shapiro.test(residuals(anova_model2))
+  print(shapiro_out2) #meets assumptions
+  
+  # use transformed model for ANOVA
+  final_model <- anova_model2
+  response <- "logDens"
+} else {
+  message("Assumptions met → using raw Density\n")
+  final_model <- anova_model
+  response <- "Density"
+}
+
+# run anova
+summary(final_model) #significant
+
+#yield analyses
+# load libs
+library(readr)
+library(dplyr)
+library(car)        # For Levene's Test
+library(ggplot2)    # For plotting
+library(ggpubr)     # For combining plots
+library(tidyr)
+
+# load data
+data <- read_csv("Yield.csv")
+
+# clean data from nas
+data_clean <- data %>%
+  select(species, yield) %>%
+  filter(!is.na(yield))
+
+# check normality by species using shapiro-wilk test
+shapiro_results <- data_clean %>%
+  group_by(species) %>%
+  summarise(p_value = shapiro.test(yield)$p.value)
+
+print("Shapiro-Wilk Test for Normality:")
+print(shapiro_results) #not normal
+
+# check homogeneity of variances using levene's test
+levene_result <- leveneTest(yield ~ species, data = data_clean)
+print("Levene's Test for Homogeneity of Variances:")
+print(levene_result) #not normals
+
+# try to log transform yield data
+data_clean <- data_clean %>%
+  mutate(log_yield = log(yield + 1e-6))
+
+# re-check assumptions after transformation
+shapiro_log <- data_clean %>%
+  group_by(species) %>%
+  summarise(p_value = shapiro.test(log_yield)$p.value)
+
+levene_log <- leveneTest(log_yield ~ species, data = data_clean)
+
+print("Shapiro-Wilk Test after Log Transformation:")
+print(shapiro_log)
+
+print("Levene's Test after Log Transformation:")
+print(levene_log) #assumptions still not met. use nonparametric alternative.
+
+# nonparametric kruskal-wallis test
+kruskal_test <- kruskal.test(yield ~ species, data = data_clean)
+print("Kruskal-Wallis Test:")
+print(kruskal_test) #signicant
+
+```
