@@ -1,4 +1,4 @@
-#code for photobiology analyses (endobiont density and yield)
+# code for photobiology analyses (endobiont density and yield)
 # endobiont densities
 
 library(car)      
